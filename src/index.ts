@@ -2,6 +2,7 @@ import { setFailed } from "@actions/core";
 import { getOctokit, context } from "@actions/github";
 
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN || "";
+const BOT_WORKFLOW_ID = "6519716";
 
 const setDebugContext = (debugEnv?: NodeJS.ProcessEnv) => {
   const env = { ...process.env, ...debugEnv };
@@ -87,7 +88,7 @@ const rerunBot = async () => {
     .listWorkflowRuns({
       owner: context.repo.owner,
       repo: context.repo.repo,
-      workflow_id: "auto-merge-bot.yml",
+      workflow_id: BOT_WORKFLOW_ID,
       actor: pr.user?.login,
       event: "pull_request_target"
     })
