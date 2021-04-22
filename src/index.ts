@@ -73,8 +73,10 @@ const requirePullNumber = () => {
   return payload.pull_request.number;
 };
 
-// HACK (alita): check the CI status and only continue if the CI is successful
-const deleteFailedWorkflowRun = async () => {
+// Find latest run with pull_request_target and rerun
+// pull_request_target is necessary because otherwise the secret fails
+// this is also cleaner than deleting (what was done previously)
+const rerunBot = async () => {
   const Github = getOctokit(GITHUB_TOKEN);
   const pr = await requirePr();
   const workflowRuns = await Github.actions
@@ -100,7 +102,7 @@ const deleteFailedWorkflowRun = async () => {
 
   if (workflowRuns.length !== 1) {
     const message = [
-      `expected only 1 workflow run by ${pr.user?.login} of even type`,
+      `expected only 1 workflow run by ${pr.user?.login} of type`,
       `pull_request_target to exist, but found more than one; aborting...`
     ].join(" ")
     setFailed(message);
@@ -109,8 +111,8 @@ const deleteFailedWorkflowRun = async () => {
 
   const run = workflowRuns[0];
   if (run.conclusion === "failure") {
-    console.log("Found failed workflow run, deleting...")
-    await Github.actions.deleteWorkflowRun({
+    console.log("Found failed workflow run, re-running...")
+    await Github.actions.reRunWorkflow({
       repo: context.repo.repo,
       owner: context.repo.owner,
       run_id: run.id
@@ -121,13 +123,6 @@ const deleteFailedWorkflowRun = async () => {
       throw err;
     })
   }
-};
-
-export const pauseInterval = (checker, timeout) => async () => {
-  const status = await checker();
-  if (!status) {
-    setTimeout(pauseInterval(checker, timeout), timeout);
-  } else return; // success
 };
 
 // only runs the bot if the CI statuses pass; checks every 30 seconds
@@ -146,4 +141,4 @@ console.log(
   ].join(" ")
 );
 
-deleteFailedWorkflowRun();
+rerunBot();
