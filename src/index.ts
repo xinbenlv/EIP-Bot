@@ -57,7 +57,9 @@ const requirePr = async () => {
   });
 
   if (pr.merged) {
-    throw `PR ${prNum} is already merged; quitting`;
+    const message = `PR ${prNum} is already merged; quitting`;
+    setFailed(message);
+    throw message;
   }
 
   return pr;
@@ -67,7 +69,9 @@ const requirePullNumber = () => {
   const payload = context.payload;
 
   if (!payload.pull_request?.number) {
-    throw "Build does not have a PR number associated with it; quitting...";
+    const message = "Build does not have a PR number associated with it; quitting...";
+    setFailed(message);
+    throw message;
   }
 
   return payload.pull_request.number;
