@@ -1,5 +1,5 @@
-name: "Auto Merge EIP"
-description: "A bot that lints EIP edits, finds common errors, and can auto-merge"
+name: "Rerun Old Bot Run (pull_request_target) on review"
+description: "This is a hack to avoid issues with secrets and non-clearing failed runs"
 inputs:
   GITHUB-TOKEN:
     description: |-

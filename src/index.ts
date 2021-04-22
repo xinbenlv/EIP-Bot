@@ -130,14 +130,16 @@ if (process.env.NODE_ENV === "development") setDebugContext();
 
 console.log(
   [
-    "This simple branched action deletes the most recent failed auto-merge-bot",
+    "This simple branched action reruns the most recent auto-merge-bot",
     "run on the PR in context; it's meant to be triggered by an event of",
     "pull_request_review; it was designed as a work-around because when a review",
     "is left, and the auto-merge-bot re-runs, github creates a new workflow run",
     "(of event-type pull_request_review) and does not remove the previous",
-    "run based on event-type pull_request_target; essentially, this leaves",
-    "a failed run that is confusing for authors because the tests say something",
-    "failed, but actually if the tests were refreshed then nothing would have failed\n\n"
+    "run based on event-type pull_request_target; this was also designed as a solution to the fact",
+    "that if the bot runs on pull_request_review on an external fork it will",
+    "fail to properly send the github secret; essentially, this prevents Github's default behavior of",
+    "leaving a failed run (which is confusing for authors) and actually lets the new run run..",
+    "thanks github 😬\n\n"
   ].join(" ")
 );
 
