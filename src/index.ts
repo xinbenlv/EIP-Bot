@@ -96,8 +96,9 @@ const rerunBot = async () => {
 
   if (!workflowRuns || !workflowRuns[0] || workflowRuns.length === 0) {
     // the failed workflow was already deleted
-    console.log("No workflow runs were found!")
-    return;
+    const message = "No workflow runs were found to re-run!";
+    setFailed(message);
+    throw message;
   }
 
   if (workflowRuns.length !== 1) {
