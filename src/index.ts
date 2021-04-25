@@ -75,14 +75,14 @@ const rerunBot = async () => {
     throw message;
   }
 
-  if (workflowRuns.length !== 1) {
-    const message = [
-      `expected only 1 workflow run by ${pr.user?.login} of type`,
-      `pull_request_target to exist, but found more than one; aborting...`
-    ].join(" ")
-    setFailed(message);
-    throw message;
-  }
+  // if (workflowRuns.length !== 1) {
+  //   const message = [
+  //     `expected only 1 workflow run by ${pr.user?.login} of type`,
+  //     `pull_request_target to exist, but found more than one; aborting...`
+  //   ].join(" ")
+  //   setFailed(message);
+  //   throw message;
+  // }
 
   const run = workflowRuns[0];
   if (run.conclusion === "failure") {
