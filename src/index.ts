@@ -98,6 +98,8 @@ const rerunBot = async () => {
       throw err;
     })
   }
+  console.log("The found run(s) did not fail; so not re-running");
+  console.log(workflowRuns);
 };
 
 // only runs the bot if the CI statuses pass; checks every 30 seconds
