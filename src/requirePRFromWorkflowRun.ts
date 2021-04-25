@@ -101,7 +101,8 @@ const requirePRFromSha = async (
     q: "q=" + [
       `sha:${sha}`, // retrieves pull request with this sha
       `is:pr`, // will only retrieve pull requests and not issues
-      `is:open` // will only retrive pull requests that are open
+      `is:open`, // will only retrive pull requests that are open
+      `repo:${context.repo.owner}/${context.repo.repo}` // only considers PRs of the repo in context
     ].join("+")
   }).then(res => res.data)
 
