@@ -1,13 +1,17 @@
 name: "Rerun Old Bot Run (pull_request_target) on review"
-description: "This is a hack to avoid issues with secrets and non-clearing failed runs"
+description: "This is a hack and requires workflow_run event trigger type"
 inputs:
   GITHUB-TOKEN:
     description: |-
       The Github token to be used by this bot when merging, posting comments, or requesting reviewers
     required: true
+  WORKFLOW-ID:
+    description: |-
+      The workflow ID of triggering workflow, this can be accessed via github.event.workflow_run.id
+    required: true
 
 runs:
   using: "composite"
   steps:
-    - run: cd ${{github.action_path}} && npm ci && npm run build && GITHUB_TOKEN=${{ inputs.GITHUB-TOKEN }} node build/index.js
+    - run: cd ${{github.action_path}} && npm ci && npm run build && GITHUB_TOKEN=${{ inputs.GITHUB-TOKEN }} WORKFLOW_ID=${{ inputs.WORKFLOW-ID }} node build/index.js
       shell: bash

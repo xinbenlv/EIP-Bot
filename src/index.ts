@@ -1,8 +1,9 @@
 import { setFailed } from "@actions/core";
 import { getOctokit, context } from "@actions/github";
+import { requirePRFromWorkflowRun } from "./requirePRFromWorkflowRun";
 
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN || "";
-const BOT_WORKFLOW_ID = "6519716";
+const BOT_WORKFLOW_ID = context.repo.owner === "alita-moore" ? "6519819" : "6519716";
 
 const setDebugContext = (debugEnv?: NodeJS.ProcessEnv) => {
   const env = { ...process.env, ...debugEnv };
@@ -47,49 +48,17 @@ const setDebugContext = (debugEnv?: NodeJS.ProcessEnv) => {
   context.eventName = env.EVENT_TYPE;
 };
 
-const requirePr = async () => {
-  const Github = getOctokit(GITHUB_TOKEN);
-
-  const prNum = requirePullNumber();
-  const { data: pr } = await Github.pulls.get({
-    repo: context.repo.repo,
-    owner: context.repo.owner,
-    pull_number: prNum
-  });
-
-  if (pr.merged) {
-    const message = `PR ${prNum} is already merged; quitting`;
-    setFailed(message);
-    throw message;
-  }
-
-  return pr;
-};
-
-const requirePullNumber = () => {
-  const payload = context.payload;
-
-  if (!payload.pull_request?.number) {
-    const message = "Build does not have a PR number associated with it; quitting...";
-    setFailed(message);
-    throw message;
-  }
-
-  return payload.pull_request.number;
-};
-
 // Find latest run with pull_request_target and rerun
 // pull_request_target is necessary because otherwise the secret fails
 // this is also cleaner than deleting (what was done previously)
 const rerunBot = async () => {
   const Github = getOctokit(GITHUB_TOKEN);
-  const pr = await requirePr();
+  const pr = await requirePRFromWorkflowRun();
   const workflowRuns = await Github.actions
     .listWorkflowRuns({
       owner: context.repo.owner,
       repo: context.repo.repo,
       workflow_id: BOT_WORKFLOW_ID,
-      actor: pr.user?.login,
       event: "pull_request_target"
     })
     .then((res) =>
@@ -136,16 +105,22 @@ if (process.env.NODE_ENV === "development") setDebugContext();
 
 console.log(
   [
-    "This simple branched action reruns the most recent auto-merge-bot",
+    "This branched action reruns the most recent auto-merge-bot",
     "run on the PR in context; it's meant to be triggered by an event of",
-    "pull_request_review; it was designed as a work-around because when a review",
+    "workflow_run; it was designed as a work-around because when a review",
     "is left, and the auto-merge-bot re-runs, github creates a new workflow run",
     "(of event-type pull_request_review) and does not remove the previous",
     "run based on event-type pull_request_target; this was also designed as a solution to the fact",
     "that if the bot runs on pull_request_review on an external fork it will",
     "fail to properly send the github secret; essentially, this prevents Github's default behavior of",
     "leaving a failed run (which is confusing for authors) and actually lets the new run run..",
-    "thanks github 😬\n\n"
+    "this is all well and good, but there was another issue as well; because github",
+    "runs the pull_request_review wrt to the source branch (so in the case of a pr",
+    "from a forked repo) the github token is not guaranteed to be known while calling",
+    "this action; so instead this action must be a side-effect trigger from a workflow_run",
+    "event type which is guaranteed to be in-scope of the primary repository and thus",
+    "have access to the github token; this solution is a bit hacky, but it is mostly integrated",
+    "and it should (🙏) be reliable for the future; either way, thanks github 😬\n\n"
   ].join(" ")
 );
 
