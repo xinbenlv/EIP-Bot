@@ -18,7 +18,8 @@ export const requireEvent = () => {
 
   const isPullRequestReview = event === EVENTS.pullRequestReview;
   const isPullRequestTarget = event === EVENTS.pullRequestTarget;
-  if (!(isPullRequestReview || isPullRequestTarget)) {
+  const isWorkflowRun = event === EVENTS.workflowRun;
+  if (!(isPullRequestReview || isPullRequestTarget || isWorkflowRun)) {
     throw `Only events of type ${EVENTS.pullRequest} are allowed`;
   }
 

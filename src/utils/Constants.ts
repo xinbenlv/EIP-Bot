@@ -26,7 +26,8 @@ export enum FileStatus {
 export enum EVENTS {
   pullRequest = "pull_request",
   pullRequestTarget = "pull_request_target",
-  pullRequestReview = "pull_request_review"
+  pullRequestReview = "pull_request_review",
+  workflowRun = "workflow_run"
 }
 
 export const CHECK_STATUS_INTERVAL = 30000
