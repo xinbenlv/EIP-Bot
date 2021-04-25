@@ -1,4 +1,5 @@
 import { setFailed } from "@actions/core";
+import { context, getOctokit } from "@actions/github";
 import {
   // merge,
   postComment,
@@ -18,7 +19,7 @@ import {
   requestReviewers,
   assertValidStatus
 } from "./lib";
-import { ERRORS, File } from "./utils";
+import { ERRORS, File, GITHUB_TOKEN } from "./utils";
 
 const testFile = async (file: File) => {
   const fileErrors = {
@@ -68,6 +69,9 @@ const testFile = async (file: File) => {
 
 export const main = async () => {
   try {
+    console.log("event name", context.eventName);
+    console.log(GITHUB_TOKEN);
+    getOctokit(GITHUB_TOKEN);
     // Verify correct enviornment and request context
     requireEvent();
     requirePullNumber();
