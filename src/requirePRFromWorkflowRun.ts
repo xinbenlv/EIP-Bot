@@ -1,4 +1,4 @@
-import { setFailed, info, debug } from "@actions/core";
+import { setFailed } from "@actions/core";
 import { getOctokit, context } from "@actions/github"
 
 const requireToken = () => {
@@ -20,37 +20,17 @@ const requireToken = () => {
   return token
 }
 
-const requireWorkflowId = () => {
-  const id = process.env.WORKFLOW_ID;
-  
-  if (!id) {
-    const message = "no workflow id was given, but a workflow id is required"
-    setFailed(message);
-    throw message;
-  }
-
-  if (typeof id === "string") {
-    return parseInt(id);
-  } else if (typeof id === "number") {
-    return id;
-  } else {
-    const message = "provided workflow id is neither a stringified number or a number"
-    setFailed(message);
-    throw message
-  }
-}
-
 const requireOctokit = () => {
   const token = requireToken();
   const github = getOctokit(token);
 
-  if (!github) {
+  if (!github?.rest) {
     const message = "something went wrong when instantiating octokit"
     setFailed(message);
     throw message
   }
 
-  return github
+  return github.rest
 }
 
 const requirePr = async (prNum: number) => {
@@ -66,7 +46,7 @@ const requirePr = async (prNum: number) => {
     const message = `PR ${prNum} was not found to be associated with a real pull request`
     setFailed(message);
     throw message;
-  } 
+  }
 
   if (pr.merged) {
     const message = `PR ${prNum} is already merged; quitting...`
@@ -77,90 +57,25 @@ const requirePr = async (prNum: number) => {
   return pr;
 };
 
-const requireWorkflowRun = () => {
-  if (context.eventName !== "workflow_run") {
+const requirePullNumber = () => {
+  const pullNumber = process.env.PULL_NUMBER;
+  if (!pullNumber) {
     const message = [
-      "this action requires that it be a side-effect run within a workflow_run;",
-      "this is because the standard event triggers are not able to access this",
-      "action outside of the scope of a workflow_run which is always in-scope",
-      "with the main repository"
+      "this action requires that a pull request number be provided",
+      "it doesn't matter where or how that is done, but any information",
+      "in context will be ignored in favor of the manual one provided"
     ].join(" ")
     setFailed(message);
     throw message;
   }
-  return true;
-}
-
-const requirePRFromSha = async (
-  sha: string
-) => {
-  // Finds Pull request for this workflow run
-  info(`\nFinding PR request id for: owner: ${context.repo.owner}, Repo: ${context.repo.repo}.\n`)
-  const github = requireOctokit();
-  const pullRequests = await github.search.issuesAndPullRequests({
-    q: "q=" + [
-      `sha:${sha}`, // retrieves pull request with this sha
-      `is:pr`, // will only retrieve pull requests and not issues
-      `is:open`, // will only retrive pull requests that are open
-      `repo:${context.repo.owner}/${context.repo.repo}` // only considers PRs of the repo in context
-    ].join("+")
-  }).then(res => res.data)
-
-  if (pullRequests.total_count === 0) {
-    const message = [
-      `no pull request was found to be both open and associated with the provided sha of ${sha}`,
-      `make sure that the WORKFLOW-ID provided is from github.event.workflow_run.id (the triggering`,
-      `event's workflow id)`
-    ].join(" ")
-    setFailed(message);
-    throw message;
-  }
-
-  if (pullRequests.total_count > 1) {
-    const message = [
-      `more than one pull request was found to be both open and associated`,
-      `with the provided sha of ${sha}; this action is not currently able`,
-      `to deal with this edge-case; please reach out to the maintainers`,
-      `if you believe this is in error`
-    ].join(" ")
-    setFailed(message);
-    throw message;
-  }
-
-  // provided the above assertions, this number is guaranteed to be defined
-  const prNum = pullRequests.items[0]?.number as NonNullable<number>;
-  return requirePr(prNum);
-}
-
-const requireHeadSha = async () => {
-  const id = requireWorkflowId();
-  const github = requireOctokit();
-
-  const sourceRun = await github.actions.getWorkflowRun({
-    owner: context.repo.owner,
-    repo: context.repo.repo,
-    run_id: id
-  }).then(res => res.data).catch(err => {
-    setFailed(err);
-    throw err;
-  });
-
-  if (!sourceRun.head_sha) {
-    const message = `workflow run found from workflow run id ${id} did not contain a head sha`
-    setFailed(message);
-    debug(JSON.stringify(sourceRun));
-    throw message;
-  }
-
-  return sourceRun.head_sha
+  return parseInt(pullNumber);
 }
 
 /**
  * @returns {octokit pr}: the pr associated with the triggering event of this workflow_run
  */
-export const requirePRFromWorkflowRun = async () => {
+export const requirePRFromEnv = async () => {
   // verifies that the event type is of workflow_run
-  requireWorkflowRun();
-  const sha = await requireHeadSha();
-  return requirePRFromSha(sha);
+  const pullNum = requirePullNumber();
+  return requirePr(pullNum)
 }

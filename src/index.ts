@@ -1,12 +1,12 @@
 import { setFailed } from "@actions/core";
 import { getOctokit, context } from "@actions/github";
-import { requirePRFromWorkflowRun } from "./requirePRFromWorkflowRun";
+import { requirePRFromEnv } from "./requirePRFromWorkflowRun";
 import moment from "moment";
 import _ from "lodash";
 
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN || "";
 const BOT_WORKFLOW_ID = process.env.ID_TO_RERUN || context.repo.owner === "alita-moore" ? "6519819" : "6519716";
-const EVENT_TYPE = process.env.EVENT_TYPE || "pull_request_target"
+const EVENT_TYPE = process.env.EVENT_TYPE;
 
 const setDebugContext = (debugEnv?: NodeJS.ProcessEnv) => {
   const env = { ...process.env, ...debugEnv };
@@ -43,8 +43,8 @@ const setDebugContext = (debugEnv?: NodeJS.ProcessEnv) => {
 // pull_request_target is necessary because otherwise the secret fails
 // this is also cleaner than deleting (what was done previously)
 const rerunBot = async () => {
-  const Github = getOctokit(GITHUB_TOKEN);
-  const pr = await requirePRFromWorkflowRun();
+  const Github = getOctokit(GITHUB_TOKEN).rest;
+  const pr = await requirePRFromEnv();
   const workflowRuns = await Github.actions
     .listWorkflowRuns({
       owner: context.repo.owner,
@@ -77,13 +77,14 @@ const rerunBot = async () => {
 
   const run = _.maxBy(workflowRuns, (run) => run.run_started_at ? moment(run.run_started_at).unix() : 0);
   if (run.conclusion === "failure") {
-    console.log("Found failed workflow run, re-running...\n", run)
+    console.log("Found failed workflow run, re-running...\n")
     await Github.actions.reRunWorkflow({
       repo: context.repo.repo,
       owner: context.repo.owner,
       run_id: run.id
     }).then(res => {
-      console.log("Success!")
+      console.log("Success!");
+      console.log(res.data);
     }).catch(err => {
       setFailed(err);
       throw err;
@@ -91,7 +92,7 @@ const rerunBot = async () => {
   } else {
     console.log("The found run(s) did not fail; so not re-running");
   }
-  console.log("all found runs =========================")
+  console.log(`all found runs (a total of ${workflowRuns.length}) were found =========================`)
   console.log(workflowRuns);
 };
 
@@ -120,7 +121,6 @@ console.log(
 );
 
 console.log([
-  `Workflow ID to rerun: ${BOT_WORKFLOW_ID}`,
-  `Workflow ID: ${process.env.WORKFLOW_ID}`
-])
+  `Pull number provided: ${process.env.PULL_NUMBER}`
+].join("\n"))
 rerunBot();
