@@ -5,7 +5,7 @@ import moment from "moment";
 import _ from "lodash";
 
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN || "";
-const BOT_WORKFLOW_ID = process.env.ID_TO_RERUN || context.repo.owner === "alita-moore" ? "6519819" : "6519716";
+const BOT_WORKFLOW_ID = process.env.ID_TO_RERUN;
 const EVENT_TYPE = process.env.EVENT_TYPE;
 
 const setDebugContext = (debugEnv?: NodeJS.ProcessEnv) => {
@@ -45,6 +45,12 @@ const setDebugContext = (debugEnv?: NodeJS.ProcessEnv) => {
 const rerunBot = async () => {
   const Github = getOctokit(GITHUB_TOKEN).rest;
   const pr = await requirePRFromEnv();
+  console.log("requesting with", {
+    owner: context.repo.owner,
+    repo: context.repo.repo,
+    workflow_id: BOT_WORKFLOW_ID,
+    event: EVENT_TYPE
+  })
   const workflowRuns = await Github.actions
     .listWorkflowRuns({
       owner: context.repo.owner,
@@ -121,6 +127,8 @@ console.log(
 );
 
 console.log([
-  `Pull number provided: ${process.env.PULL_NUMBER}`
+  `Pull number provided: ${process.env.PULL_NUMBER}`,
+  `Event type provided: ${process.env.EVENT_TYPE}`,
+  `Bot ID: ${process.env.ID_TO_RERUN}`
 ].join("\n"))
 rerunBot();
