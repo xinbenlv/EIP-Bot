@@ -55,7 +55,7 @@ const rerunBot = async () => {
     workflow_id: BOT_WORKFLOW_ID,
     event: EVENT_TYPE,
     branch: pr.head.ref,
-    actor: pr.head.user.login
+    actor: pr.user?.login
   })
   const workflowRuns = await Github.actions
     .listWorkflowRuns({
@@ -64,7 +64,7 @@ const rerunBot = async () => {
       workflow_id: BOT_WORKFLOW_ID,
       event: EVENT_TYPE,
       branch: pr.head.ref,
-      actor: pr.head.user.login,
+      actor: pr.user?.login,
       per_page: 100
     })
     .then((res) =>
