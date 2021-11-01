@@ -1,9 +1,12 @@
 import { setFailed } from "@actions/core";
 import { getOctokit, context } from "@actions/github";
 import { requirePRFromWorkflowRun } from "./requirePRFromWorkflowRun";
+import moment from "moment";
+import _ from "lodash";
 
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN || "";
-const BOT_WORKFLOW_ID = context.repo.owner === "alita-moore" ? "6519819" : "6519716";
+const BOT_WORKFLOW_ID = process.env.ID_TO_RERUN || context.repo.owner === "alita-moore" ? "6519819" : "6519716";
+const EVENT_TYPE = process.env.EVENT_TYPE || "pull_request_target"
 
 const setDebugContext = (debugEnv?: NodeJS.ProcessEnv) => {
   const env = { ...process.env, ...debugEnv };
@@ -21,18 +24,6 @@ const setDebugContext = (debugEnv?: NodeJS.ProcessEnv) => {
     },
     number: parseInt(env.PULL_NUMBER || "") || 0
   };
-
-  if (env.NODE_ENV === "test") {
-    context.repo = {
-      owner: env.REPO_OWNER_NAME,
-      repo: env.REPO_NAME
-    };
-  } else {
-    // @ts-ignore
-    context.repo.owner = env.REPO_OWNER_NAME;
-    // @ts-ignore
-    context.repo.repo = env.REPO_NAME;
-  }
 
   context.payload.repository = {
     // @ts-ignore
@@ -59,7 +50,7 @@ const rerunBot = async () => {
       owner: context.repo.owner,
       repo: context.repo.repo,
       workflow_id: BOT_WORKFLOW_ID,
-      event: "pull_request_target"
+      event: EVENT_TYPE
     })
     .then((res) =>
       res.data.workflow_runs.filter((run) => run.head_sha === pr.head.sha)
@@ -84,9 +75,9 @@ const rerunBot = async () => {
   //   throw message;
   // }
 
-  const run = workflowRuns[0];
+  const run = _.maxBy(workflowRuns, (run) => run.run_started_at ? moment(run.run_started_at).unix() : 0);
   if (run.conclusion === "failure") {
-    console.log("Found failed workflow run, re-running...")
+    console.log("Found failed workflow run, re-running...\n", run)
     await Github.actions.reRunWorkflow({
       repo: context.repo.repo,
       owner: context.repo.owner,
@@ -97,8 +88,10 @@ const rerunBot = async () => {
       setFailed(err);
       throw err;
     })
+  } else {
+    console.log("The found run(s) did not fail; so not re-running");
   }
-  console.log("The found run(s) did not fail; so not re-running");
+  console.log("all found runs =========================")
   console.log(workflowRuns);
 };
 
@@ -126,4 +119,8 @@ console.log(
   ].join(" ")
 );
 
+console.log([
+  `Workflow ID to rerun: ${BOT_WORKFLOW_ID}`,
+  `Workflow ID: ${process.env.WORKFLOW_ID}`
+])
 rerunBot();

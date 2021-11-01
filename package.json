@@ -20,6 +20,8 @@
     "@zeit/ncc": "0.22.3",
     "dotenv": "8.2.0",
     "front-matter": "4.0.2",
+    "lodash": "^4.17.21",
+    "moment": "^2.29.1",
     "nock": "^13.0.11"
   },
   "devDependencies": {
