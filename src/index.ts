@@ -45,18 +45,27 @@ const setDebugContext = (debugEnv?: NodeJS.ProcessEnv) => {
 const rerunBot = async () => {
   const Github = getOctokit(GITHUB_TOKEN).rest;
   const pr = await requirePRFromEnv();
+
+  // if there are too many results then the workflow you're looking for can
+  // get lost. If this isn't enough then you can brute force it by forcing
+  // the api to return all data (on all pages)
   console.log("requesting with", {
     owner: context.repo.owner,
     repo: context.repo.repo,
     workflow_id: BOT_WORKFLOW_ID,
-    event: EVENT_TYPE
+    event: EVENT_TYPE,
+    branch: pr.head.ref,
+    actor: pr.head.user.login
   })
   const workflowRuns = await Github.actions
     .listWorkflowRuns({
       owner: context.repo.owner,
       repo: context.repo.repo,
       workflow_id: BOT_WORKFLOW_ID,
-      event: EVENT_TYPE
+      event: EVENT_TYPE,
+      branch: pr.head.ref,
+      actor: pr.head.user.login,
+      per_page: 100
     })
     .then((res) =>
       res.data.workflow_runs.filter((run) => run.head_sha === pr.head.sha)
@@ -68,6 +77,7 @@ const rerunBot = async () => {
   if (!workflowRuns || !workflowRuns[0] || workflowRuns.length === 0) {
     // the failed workflow was already deleted
     const message = "No workflow runs were found to re-run!";
+    console.log(workflowRuns);
     setFailed(message);
     throw message;
   }
