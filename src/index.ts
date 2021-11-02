@@ -5,8 +5,8 @@ import moment from "moment";
 import _ from "lodash";
 
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN || "";
-const BOT_WORKFLOW_ID = process.env.ID_TO_RERUN || context.repo.owner === "alita-moore" ? "6519819" : "6519716";
-const EVENT_TYPE = process.env.EVENT_TYPE || "pull_request_target"
+const BOT_WORKFLOW_ID = process.env.ID_TO_RERUN as string;
+const RUN_EVENT_TYPE = process.env.RUN_EVENT_TYPE || "pull_request_target"
 
 const setDebugContext = (debugEnv?: NodeJS.ProcessEnv) => {
   const env = { ...process.env, ...debugEnv };
@@ -39,40 +39,48 @@ const setDebugContext = (debugEnv?: NodeJS.ProcessEnv) => {
   context.eventName = env.EVENT_TYPE;
 };
 
+const getWorkflowRun = async (page: number = 1) => {
+  const Github = getOctokit(GITHUB_TOKEN)
+  const pr = await requirePRFromWorkflowRun();
+
+  const per_page = 100;
+  console.log("requesting with", {
+    owner: context.repo.owner,
+    repo: context.repo.repo,
+    workflow_id: BOT_WORKFLOW_ID,
+    event: RUN_EVENT_TYPE,
+    branch: pr.head.ref,
+    per_page,
+    page
+  })
+  return await Github.actions
+      .listWorkflowRuns({
+        owner: context.repo.owner,
+        repo: context.repo.repo,
+        workflow_id: BOT_WORKFLOW_ID,
+        event: RUN_EVENT_TYPE,
+        branch: pr.head.ref,
+        per_page,
+        page
+      })
+      .then(async (res) => {
+        if (res.data.total_count - (page * per_page) < per_page) {
+          return res.data.workflow_runs.filter((run) => run.head_sha === pr.head.sha)
+        }
+        const workflows = res.data.workflow_runs.filter((run) => run.head_sha === pr.head.sha)
+        return [...workflows, ...(await getWorkflowRun(page + 1))]
+      }).catch(err => {
+      setFailed(err);
+      throw err;
+    });
+}
+
 // Find latest run with pull_request_target and rerun
 // pull_request_target is necessary because otherwise the secret fails
 // this is also cleaner than deleting (what was done previously)
 const rerunBot = async () => {
   const Github = getOctokit(GITHUB_TOKEN);
-  const pr = await requirePRFromWorkflowRun();
-
-  // if there are too many results then the workflow you're looking for can
-  // get lost. If this isn't enough then you can brute force it by forcing
-  // the api to return all data (on all pages)
-  console.log("requesting with", {
-    owner: context.repo.owner,
-    repo: context.repo.repo,
-    workflow_id: BOT_WORKFLOW_ID,
-    event: EVENT_TYPE,
-    branch: pr.head.ref,
-    actor: pr.user?.login
-  })
-  const workflowRuns = await Github.actions
-    .listWorkflowRuns({
-      owner: context.repo.owner,
-      repo: context.repo.repo,
-      workflow_id: BOT_WORKFLOW_ID,
-      event: EVENT_TYPE,
-      branch: pr.head.ref,
-      actor: pr.user?.login,
-      per_page: 100
-    })
-    .then((res) =>
-      res.data.workflow_runs.filter((run) => run.head_sha === pr.head.sha)
-    ).catch(err => {
-      setFailed(err);
-      throw err;
-    });
+  const workflowRuns = await getWorkflowRun()
 
   if (!workflowRuns || !workflowRuns[0] || workflowRuns.length === 0) {
     // the failed workflow was already deleted
@@ -81,18 +89,9 @@ const rerunBot = async () => {
     throw message;
   }
 
-  // if (workflowRuns.length !== 1) {
-  //   const message = [
-  //     `expected only 1 workflow run by ${pr.user?.login} of type`,
-  //     `pull_request_target to exist, but found more than one; aborting...`
-  //   ].join(" ")
-  //   setFailed(message);
-  //   throw message;
-  // }
-
   const run = _.maxBy(workflowRuns, (run) => run.run_started_at ? moment(run.run_started_at).unix() : 0);
   if (run.conclusion === "failure") {
-    console.log("Found failed workflow run, re-running...\n", run)
+    console.log("The most recent workflow run failed, re-running...\n", run)
     await Github.actions.reRunWorkflow({
       repo: context.repo.repo,
       owner: context.repo.owner,

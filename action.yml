@@ -13,7 +13,7 @@ inputs:
     description: |-
       Every workflow has an ID, and you must include the id here to let this action know which workflow to rerun
     required: true
-  EVENT-TYPE:
+  RUN-EVENT-TYPE:
     description: |-
       The name of the event triggering this workflow that you want to rerun
     required: true
@@ -21,5 +21,5 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - run: cd ${{github.action_path}} && npm ci && npm run build && EVENT_TYPE=${{inputs.EVENT-TYPE}} GITHUB_TOKEN=${{ inputs.GITHUB-TOKEN }} ID_TO_RERUN=${{ inputs.ID-TO-RERUN }} WORKFLOW_ID=${{ inputs.WORKFLOW-ID }} node build/index.js
+    - run: cd ${{github.action_path}} && npm ci && npm run build && RUN_EVENT_TYPE=${{inputs.EVENT-TYPE}} GITHUB_TOKEN=${{ inputs.GITHUB-TOKEN }} ID_TO_RERUN=${{ inputs.ID-TO-RERUN }} WORKFLOW_ID=${{ inputs.WORKFLOW-ID }} node build/index.js
       shell: bash
